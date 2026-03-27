@@ -1,0 +1,26 @@
+{
+  "name": "telescope",
+  "version": "1.0.0",
+  "description": "AI-powered observability and telemetry reviewer for GitHub pull requests",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types env.d.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "agents": "^0.8.6",
+    "ai": "^6.0.140",
+    "workers-ai-provider": "^3.1.8",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260317.1",
+    "typescript": "^6.0.2",
+    "wrangler": "^4.77.0"
+  }
+}
