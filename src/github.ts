@@ -192,6 +192,88 @@ export async function fetchDependencyManifests(
   return results.filter((r): r is DependencyManifest => r !== null);
 }
 
+export interface TreeEntry {
+  path: string;
+  mode: string;
+  type: "blob" | "tree";
+  sha: string;
+  size?: number;
+}
+
+export async function fetchRepoTree(
+  owner: string,
+  repo: string,
+  sha: string,
+  token: string
+): Promise<TreeEntry[]> {
+  const res = await githubFetch(
+    `/repos/${owner}/${repo}/git/trees/${sha}?recursive=1`,
+    token
+  );
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch repo tree: ${res.status} ${res.statusText}`
+    );
+  }
+  const data = (await res.json()) as any;
+  return (data.tree as TreeEntry[]).filter((e) => e.type === "blob");
+}
+
+export interface CompareFile {
+  filename: string;
+  status: "added" | "modified" | "removed" | "renamed";
+}
+
+export async function fetchCompare(
+  owner: string,
+  repo: string,
+  baseSha: string,
+  headSha: string,
+  token: string
+): Promise<CompareFile[]> {
+  const res = await githubFetch(
+    `/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
+    token
+  );
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch compare: ${res.status} ${res.statusText}`
+    );
+  }
+  const data = (await res.json()) as any;
+  return (data.files ?? []).map((f: any) => ({
+    filename: f.filename,
+    status: f.status,
+  }));
+}
+
+export async function fetchDefaultBranch(
+  owner: string,
+  repo: string,
+  token: string
+): Promise<{ branch: string; sha: string }> {
+  const res = await githubFetch(`/repos/${owner}/${repo}`, token);
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch repo info: ${res.status} ${res.statusText}`
+    );
+  }
+  const data = (await res.json()) as any;
+  const branch = data.default_branch;
+  // Get the SHA of the default branch head
+  const refRes = await githubFetch(
+    `/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+    token
+  );
+  if (!refRes.ok) {
+    throw new Error(
+      `Failed to fetch branch ref: ${refRes.status} ${refRes.statusText}`
+    );
+  }
+  const refData = (await refRes.json()) as any;
+  return { branch, sha: refData.object.sha };
+}
+
 export async function postReviewComment(
   owner: string,
   repo: string,

@@ -112,6 +112,16 @@ Flag when:
 - Trace context not propagated across async boundaries
 - Sampling configuration issues
 
+## Repository Intelligence
+
+When provided with a **Repository Profile**, **Telemetry Inventory**, **Similar Patterns**, or **Recommendation History**, use them to:
+
+1. **Follow established patterns**: If the codebase already instruments HTTP handlers with a specific pattern (e.g., middleware-based tracing in \`src/middleware/tracing.ts\`), recommend the same approach for new handlers — reference the specific file and function.
+2. **Reference existing code**: When suggesting new instrumentation, point to concrete examples already in the codebase. Say "follow the pattern in \`src/metrics.ts:42\`" rather than showing generic documentation examples.
+3. **Respect maintainer preferences**: If recommendation history shows a category is frequently dismissed (low acceptance rate), deprioritize those suggestions or omit info-level ones entirely. Focus on categories the team actually acts on.
+4. **Detect pattern drift**: Flag when new code diverges from the repo's established telemetry patterns — e.g., using \`console.log\` when the repo has \`pino\` configured, or creating ad-hoc metrics when there's a centralized metrics module.
+5. **Be stack-specific**: If the repository profile shows a known telemetry stack, all recommendations must use that stack's APIs and conventions. Never suggest generic alternatives.
+
 ## Output Instructions
 
 1. Only flag issues in CHANGED or ADDED lines. Do not review deleted code.
