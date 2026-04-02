@@ -8,8 +8,16 @@ import type {
   DependencyManifest,
   PRMetadata,
   Recommendation,
+  RecommendationPatterns,
+  RepoProfile,
   ReviewResult,
 } from "./types";
+
+interface RepoContext {
+  inventory: { filePath: string; segmentType: string; content: string }[];
+  patterns: RecommendationPatterns[];
+  similarCode: { filePath: string; segmentType: string; content: string; context: string | null; score: number }[];
+}
 
 const HIGH_RELEVANCE_THRESHOLD = 7;
 const LOW_RELEVANCE_THRESHOLD = 3;
@@ -21,7 +29,9 @@ export async function analyzePR(
   files: FileChange[],
   dependencyManifests: DependencyManifest[],
   prMeta: PRMetadata,
-  analysisModel: LanguageModel
+  analysisModel: LanguageModel,
+  repoProfile?: RepoProfile | null,
+  repoContext?: RepoContext | null
 ): Promise<{
   recommendations: Recommendation[];
   summary: string;
@@ -30,7 +40,9 @@ export async function analyzePR(
     triageResults,
     files,
     dependencyManifests,
-    prMeta
+    prMeta,
+    repoProfile,
+    repoContext
   );
 
   const { object } = await generateObject({
@@ -50,7 +62,9 @@ function buildAnalysisPrompt(
   triageResults: TriageResult[],
   files: FileChange[],
   dependencyManifests: DependencyManifest[],
-  prMeta: PRMetadata
+  prMeta: PRMetadata,
+  repoProfile?: RepoProfile | null,
+  repoContext?: RepoContext | null
 ): string {
   const sections: string[] = [];
 
@@ -108,6 +122,59 @@ function buildAnalysisPrompt(
     for (const triage of mediumRelevance) {
       sections.push(
         `- **${triage.filename}** (score: ${triage.relevanceScore}): ${triage.summary}`
+      );
+    }
+  }
+
+  // Repository intelligence (if available)
+  if (repoProfile) {
+    // Pre-generated architecture summary (replaces raw inventory dump)
+    if (repoProfile.telemetrySummary) {
+      sections.push("## Repository Telemetry Architecture\n");
+      sections.push(repoProfile.telemetrySummary);
+    } else {
+      // Fallback: basic profile info
+      sections.push("## Repository Profile\n");
+      sections.push(
+        `- **Telemetry stack**: ${repoProfile.telemetryStack.length > 0 ? repoProfile.telemetryStack.join(", ") : "unknown"}`
+      );
+      if (repoProfile.framework) {
+        sections.push(`- **Framework**: ${repoProfile.framework}`);
+      }
+      sections.push(`- **Total reviews**: ${repoProfile.totalReviews}`);
+    }
+  }
+
+  if (repoContext) {
+    // Similar patterns in this codebase (from semantic search)
+    if (repoContext.similarCode.length > 0) {
+      sections.push("## Similar Patterns in This Codebase\n");
+      sections.push(
+        "Existing telemetry code in this repo that is similar to the current PR's changes:\n"
+      );
+      for (const match of repoContext.similarCode) {
+        const description = match.context
+          ? `${match.context}`
+          : `${match.segmentType} pattern`;
+        sections.push(
+          `- \`${match.filePath}\` (${description}, similarity: ${(match.score * 100).toFixed(0)}%):\n\`\`\`\n${match.content.slice(0, 400)}\n\`\`\``
+        );
+      }
+    }
+
+    // Recommendation acceptance patterns
+    if (repoContext.patterns.length > 0) {
+      sections.push("## Recommendation History\n");
+      sections.push(
+        "Past recommendation acceptance rates for this repo:\n"
+      );
+      for (const p of repoContext.patterns) {
+        sections.push(
+          `- **${p.category}**: ${(p.acceptanceRate * 100).toFixed(0)}% accepted (${p.actedOn}/${p.total} acted on, ${p.dismissed} dismissed)`
+        );
+      }
+      sections.push(
+        "\nUse this to prioritize recommendations that this repo's maintainers tend to act on."
       );
     }
   }

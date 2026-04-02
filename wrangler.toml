@@ -13,3 +13,25 @@ class_name = "TelescopeAgent"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["TelescopeAgent"]
+
+# D1 database for repo profiles, telemetry inventory, recommendation history
+[[d1_databases]]
+binding = "TELESCOPE_DB"
+database_name = "telescope-db"
+database_id = "9f4d61aa-9315-415a-907f-41b0e7bebaf7"
+migrations_dir = "migrations"
+
+# Vectorize index for code embeddings (semantic search)
+[[vectorize]]
+binding = "CODE_EMBEDDINGS"
+index_name = "code-embeddings"
+remote = true
+
+# Queue producer for background indexing jobs
+[[queues.producers]]
+queue = "telescope-indexing"
+binding = "INDEXING_QUEUE"
+
+# Queue consumer for processing indexing jobs
+[[queues.consumers]]
+queue = "telescope-indexing"
